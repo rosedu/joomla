@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE install SYSTEM "http://dev.joomla.org/xml/1.5/plugin-install.dtd">
+<install version="1.6" type="plugin" group="system">
+	<name>
+		Autosave extension
+	</name>
+	<author>
+		NiGhTCrAwLeR
+	</author>
+	<authorEmail>
+		office_nightcrawler@yahoo.com
+	</authorEmail>
+	<authorUrl>
+		office_nightcrawler@yahoo.com
+	</authorUrl>
+	<creationDate>
+		22/03/2010
+	</creationDate>
+	<copyright>
+		Powered by NiGhTCrAwLeR
+	</copyright>
+	<license>
+		OpenSource
+	</license>
+	<version>
+		1.0
+	</version>
+	<description>
+		Autosave extension
+	</description>
+	<files>
+		<filename plugin="autosave">autosave.php</filename>
+		<filename plugin="autosave">autosave.js</filename>
+		<filename plugin="autosave">autosave.css</filename>
+	</files>
+	<params/>
+</install>
