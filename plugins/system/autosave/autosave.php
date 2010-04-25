@@ -1,4 +1,11 @@
 <?php
+	/**
+	 * @version		Autosave 0.7
+	 * @author		NiGhTCrAwLeR
+	 * @copyright	Powered by NiGhTCrAwLeR
+	 * @license		GPL
+	 */
+ 
 	// no direct access
 	defined('_JEXEC') or die('Restricted access');
 	
@@ -10,9 +17,18 @@
 	*/
 	class plgSystemAutosave extends JPlugin {
 		
+		// Settings
+		var $asTitle = '<p align="center">Last time you were logged you had these pages open:</p>';
+		var $asLink  = '<input type="checkbox" name="%s"> [%d] <a href="%s">%s</a><br>';
+		var $asOpen = 'Open Selected Links';
+		var $asAjax = '/joomla/plugins/system/autosave/delete.php';
+		// End of Settings
+		
+		// vars that will be used along the program
 		var $currentURL;
 		var $currentUser;
 		var $currentTitle;
+		
 		
 		/**
 		* Store the gathered data in the DB
@@ -48,8 +64,9 @@
 		
 		/**
 		* Display session restore popup
+		* Also, get title of page
 		*/
-		function onAfterRender() {
+		function onAfterRender() {	
 			// check to see if we have links to display
 			$session =& JFactory::getSession();
 			$displayLinks = $session->get('asDisplay', 0, 'autosave');
@@ -57,7 +74,10 @@
 			if ($displayLinks) {
 				$links = $session->get('asLinks', '', 'autosave');
 				
-				JResponse::appendBody("<script>displayBlackDiv('$links');</script>");
+				// something to know that we displayed the links
+				$session->set('asDisplayed', '1', 'autosave');
+				
+				JResponse::appendBody("<div id='asLinks' width='300'>$links</div><script> loadAsPopup(); </script>");
 				
 				return ;
 			}
@@ -69,72 +89,97 @@
 			//echo $this->currentUser->username ." is at page $this->currentURL with the title $this->currentTitle<br>";
 		}
 		
-		function onAfterDispatch() {
-			/*$included_files = get_included_files();
-			$fd = fopen("D:/AppServ/www/joomla/test.txt","a");
-			foreach ($included_files as $filename) {
-				fwrite($fd, "$filename\r\n");
-			}
-			fwrite($fd,"------------------------\r\n\r\n");*/
-			//fclose($fd);
+		/**
+		* Insert the necessary JS files
+		*/
+		function plugModal() {
+			// load the modal plugin
+			JHTML::_( 'behavior.modal');
+			
+			// insert our custom js
+			$document =& JFactory::getDocument();
+			$document->addScript("/joomla/plugins/system/autosave/autosave.js");
 		}
 		
 		/**
-		* 
+		* Check to see if we have links to dsplay and take the apropriate actions
+		*		- if we have, display them
+		*		- if we already displayed them, delete them
+		*		- if we don't have any, start getting some
 		*/
 		function onAfterInitialise() {
-			/*$session =& JFactory::getSession();
-			$TC = $session->get('TC', 0, 'TC');
-			$session->set('TC',$TC+1,"TC");
-			
-			$fd = fopen("D:/AppServ/www/joomla/test.txt","a");
-			fwrite($fd,"TCi = ".$TC."\r\n");*/
-			//fclose($fd);
-			
 			// get the current user
  			$this->currentUser =& JFactory::getUser();
+			
+			$session =& JFactory::getSession();
+			//$session->set('asCurrentUser', $this->currentUser->id, 'autosave');*/
 			
 			// check to see if user is not a guest
 			if ($this->currentUser->guest == 1)
 				return ;
 			
-			// check to see if we have links to display
-			$session =& JFactory::getSession();
-			$displayLinks = $session->get('asDisplay', 0, 'autosave');
-			
-			if ($displayLinks) {
-				$links = $session->get('asLinks', '', 'autosave');
-				
-				$document =& JFactory::getDocument();
-				$document->addScript("/joomla/plugins/system/autosave/autosave.js");
-				$document->addStyleSheet("/joomla/plugins/system/autosave/autosave.css");
-				
-				return ;
-			}
-			
 			// get the current URL
 			$this->currentURL = JRequest::getURI();
+			
+			// add the onUnLoad event
+			JHTML::_( 'behavior.mootools' );
+			$document =& JFactory::getDocument();
+			$document->addScript("/joomla/plugins/system/autosave/ajax_fns.js");
+			
+			// send the user id and the current url
+			$query = "uid=" . $this->currentUser->id . "&url=" . $this->currentURL;
+			
+			$content = 'window.addEvent("unload", function() { callAjax("'.$this->asAjax.'", "POST", "'.$query.'", "") } ); ';
+			$document->addScriptDeclaration( $content );
+			
+			// check to see if we have links to display
+			$displayLinks = $session->get('asDisplay', 0, 'autosave');
+			$alreadyDisplayed = $session->get('asDisplayed', 0, 'autosave');
+			
+			// we have already shown the links so delete them
+			if ($alreadyDisplayed) {
+				// unset session variables
+				$session->set('asDisplay', 0, 'autosave');
+				$session->set('asDisplayed', 0, 'autosave');
+				$displayLinks = 0;
+				
+				// delete data
+				$this->onLogoutUser();
+			}
+			
+			if ($displayLinks) {
+				//$links = $session->get('asLinks', '', 'autosave');
+				$this->plugModal();
+				return ;
+			}
 		}
 
 		
 		/**
 		* When the user logs out, delete all the autosave data
 		*/
-		function onLogoutUser($user) {
-			/*$db =& JFactory::getDBO();
-			$deleteQuery = 'DELETE FROM '.$db->nameQuote('#__autosave').' WHERE '.$db->nameQuote('userid').' = '.$db->Quote($user['id']);
+		function onLogoutUser($user = NULL) {
+			if (!$user) // when called from onAfterInitialise
+				$id = $this->currentUser->id;
+			else {
+				$id = $user['id'];
+				return ; // for debugging: does not clear autosave data at logout
+			}
+			
+			$db =& JFactory::getDBO();
+			$deleteQuery = 'DELETE FROM '.$db->nameQuote('#__autosave').' WHERE '.$db->nameQuote('userid').' = '.$db->Quote($id);
 			
 			$db->setQuery($deleteQuery);
 			if (!$result = $db->query()){
 				echo $db->stderr();
 				return FALSE;
 				exit;
-			}*/
+			}
 		}
 		
 		
 		/**
-		* When the user logs in, greet him with a popup displaying all previously opened links
+		* When the user logs in, check to see if he has any autosave data and pass it along
 		*/
 		function onLoginUser($user, $options) {
 			
@@ -167,15 +212,13 @@
 				$session =& JFactory::getSession();
 				$session->set('asDisplay', 1, 'autosave');
 				
-				$r = '<p align="center">Last time you were logged you had these pages open:</p>';
+				$r = $this->asTitle;
 				
 				foreach ($links as $i => $link) {
-					$r .= "<input type=\"checkbox\" name=\"open_$i\"> [$i] <a href=\"$link[url]\">$link[title]</a><br>";
+					$r .= sprintf($this->asLink,"open_$i",$i,$link['url'],$link['title']);
 				}
 				
-				//$r .= '<a href="javascript:document.getElementById(\'darkenScreenObject\').style.display=none;">Close</a>';
-				
-				$session->set('asLinks', $r, 'autosave');
+				$session->set('asLinks', stripslashes($r), 'autosave');
 			}
 		}
 	}

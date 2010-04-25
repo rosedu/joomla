@@ -20,18 +20,19 @@
 		Powered by NiGhTCrAwLeR
 	</copyright>
 	<license>
-		OpenSource
+		GPL
 	</license>
 	<version>
-		1.0
+		0.7
 	</version>
 	<description>
 		Autosave extension
 	</description>
 	<files>
 		<filename plugin="autosave">autosave.php</filename>
+		<filename plugin="autosave">delete.php</filename>
 		<filename plugin="autosave">autosave.js</filename>
-		<filename plugin="autosave">autosave.css</filename>
+		<filename plugin="autosave">ajax_fns.js</filename>
 	</files>
 	<params/>
 </install>
